@@ -317,6 +317,16 @@ class UpdateStatus(DeclEnum):
     processing = 'processing', 'processing'
 
 
+class CiStatus(DeclEnum):
+    """ This class lists the different status the ci_status flag can have.
+    """
+    ignored = 'ignored', 'ignored'
+    queued = 'queued', 'queued'
+    running = 'running', 'running'
+    passed = 'passed', 'passed'
+    failed = 'failed', 'failed'
+
+
 class UpdateType(DeclEnum):
     bugfix = 'bugfix', 'bugfix'
     security = 'security', 'security'
@@ -644,6 +654,8 @@ class Build(Base):
             of.
         type (int): The polymorphic identify of the row. This is used by sqlalchemy to identify
             which subclass of Build to use.
+        ci_status (EnumSymbol): The CI status of the update. This must be one of the values
+            defined in :class:`CiStatus` or ``None``.
     """
     __tablename__ = 'builds'
     __exclude_columns__ = ('id', 'package', 'package_id', 'release',
@@ -655,6 +667,7 @@ class Build(Base):
     release_id = Column(Integer, ForeignKey('releases.id'))
     signed = Column(Boolean, default=False, nullable=False)
     update_id = Column(Integer, ForeignKey('updates.id'))
+    ci_status = Column(CiStatus.db_type(), default=None, nullable=True)
 
     release = relationship('Release', backref='builds', lazy=False)
 
@@ -1258,6 +1271,20 @@ class Update(Base):
         if not self.release.pending_signing_tag:
             return True
         return all([build.signed for build in self.builds])
+
+    @property
+    def ci_status(self):
+        """ Return a boolean representing if all the builds associated with
+        this update are ignored or have passed their CI testing.
+
+        Returns False if at least one of the tests of the builds associated
+        with this update are queued, running or failed.
+        """
+
+        ci_status = set([build.ci_status for build in self.builds])
+        if not ci_status.difference(set([CiStatus.ignored, CiStatus.passed])):
+            return True
+        return False
 
     def obsolete_older_updates(self, db):
         """Obsolete any older pending/testing updates.
@@ -2045,6 +2072,9 @@ class Update(Base):
                 if latest['outcome'] not in ['PASSED', 'INFO']:
                     return False, "Required task %s returned %s" % (
                         latest['testcase']['name'], latest['outcome'])
+
+        if not self.ci_status:
+            return False, "CI did not pass on this update"
 
         # TODO - check require_bugs and require_testcases also?
 
