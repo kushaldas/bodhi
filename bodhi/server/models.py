@@ -1274,7 +1274,7 @@ class Update(Base):
 
     @property
     def ci_status(self):
-        """ Return a boolean representing if all the builds associated with
+        """ Returns a boolean representing if all the builds associated with
         this update are ignored or have passed their CI testing.
 
         Returns False if at least one of the tests of the builds associated
@@ -2197,6 +2197,9 @@ class Update(Base):
         simply return True.
         """
         num_days = self.mandatory_days_in_testing
+
+        if not self.ci_status:
+            return False
 
         if self.critpath:
             # Ensure there is no negative karma. We're looking at the sum of

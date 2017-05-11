@@ -30,7 +30,7 @@ from bodhi.server.config import config
 from bodhi.server.exceptions import BodhiException
 from bodhi.server.models import (
     BugKarma, ReleaseState, UpdateRequest, UpdateSeverity, UpdateStatus,
-    UpdateSuggestion, UpdateType)
+    UpdateSuggestion, UpdateType, CiStatus)
 from bodhi.tests.server.base import BaseTestCase
 
 
@@ -349,7 +349,7 @@ class TestUpdate(ModelTest):
         return dict(
             builds=[model.RpmBuild(
                 nvr=u'TurboGears-1.0.8-3.fc11', package=model.Package(**TestPackage.attrs),
-                release=release)],
+                release=release, ci_status=CiStatus.passed)],
             bugs=[model.Bug(bug_id=1), model.Bug(bug_id=2)],
             cves=[model.CVE(cve_id=u'CVE-2009-0001')],
             release=release,
@@ -465,6 +465,62 @@ class TestUpdate(ModelTest):
         eq_(update.meets_testing_requirements, False)
 
         eq_(update.days_to_stable, 3)
+
+    def test_ci_failed_no_testing_requirements(self):
+        """
+        The Update.meets_testing_requirements() should return False if the
+        builds of an update did not pass CI.
+        """
+        update = self.obj
+        update.autokarma = False
+        update.stable_karma = 1
+        update.builds[0].ci_status = CiStatus.failed
+        update.comment(self.db, u'I found $100 after applying this update.', karma=1,
+                       author=u'bowlofeggs')
+        # Assert that our preconditions from the docblock are correct.
+        eq_(update.meets_testing_requirements, False)
+
+    def test_ci_queued_no_testing_requirements(self):
+        """
+        The Update.meets_testing_requirements() should return False if the
+        builds of an update did not pass CI.
+        """
+        update = self.obj
+        update.autokarma = False
+        update.stable_karma = 1
+        update.builds[0].ci_status = CiStatus.queued
+        update.comment(self.db, u'I found $100 after applying this update.', karma=1,
+                       author=u'bowlofeggs')
+        # Assert that our preconditions from the docblock are correct.
+        eq_(update.meets_testing_requirements, False)
+
+    def test_ci_running_no_testing_requirements(self):
+        """
+        The Update.meets_testing_requirements() should return False if the
+        builds of an update did not pass CI.
+        """
+        update = self.obj
+        update.autokarma = False
+        update.stable_karma = 1
+        update.builds[0].ci_status = CiStatus.running
+        update.comment(self.db, u'I found $100 after applying this update.', karma=1,
+                       author=u'bowlofeggs')
+        # Assert that our preconditions from the docblock are correct.
+        eq_(update.meets_testing_requirements, False)
+
+    def test_ci_missing_no_testing_requirements(self):
+        """
+        The Update.meets_testing_requirements() should return False if the
+        builds of an update did not pass CI.
+        """
+        update = self.obj
+        update.autokarma = False
+        update.stable_karma = 1
+        update.builds[0].ci_status = None
+        update.comment(self.db, u'I found $100 after applying this update.', karma=1,
+                       author=u'bowlofeggs')
+        # Assert that our preconditions from the docblock are correct.
+        eq_(update.meets_testing_requirements, False)
 
     @mock.patch('bodhi.server.models.bugs.bugtracker.close')
     @mock.patch('bodhi.server.models.bugs.bugtracker.comment')

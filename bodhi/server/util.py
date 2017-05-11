@@ -343,6 +343,20 @@ def status2html(context, status):
     return "<span class='label label-%s'>%s</span>" % (cls, status)
 
 
+def ci_status2html(context, status):
+    cls = {
+        'ignored': 'success',
+        'running': 'warning',
+        'passed': 'success',
+        'failed': 'danger',
+        'queued': 'info',
+        'unknown': 'primary',
+    }[status]
+    if status == 'unknown':
+        status = 'info awaited'
+    return "<span class='label label-%s'>Tests %s</span>" % (cls, status)
+
+
 def state2class(context, state):
     state = unicode(state)
     cls = {
