@@ -1286,6 +1286,27 @@ class Update(Base):
             return True
         return False
 
+    @property
+    def ci_status_label(self):
+        """ Returns a label representing if all the builds associated with
+        this update are ignored or have passed their CI testing.
+
+        Returns one of: ignored, passed, failed, queued, running
+        """
+
+        ci_status = set([build.ci_status for build in self.builds])
+        if ci_status == set([CiStatus.ignored]):
+            return 'ignored'
+        if ci_status == set([CiStatus.passed]):
+            return 'passed'
+        if CiStatus.failed in ci_status:
+            return 'failed'
+        if CiStatus.running in ci_status:
+            return 'running'
+        if CiStatus.queued in ci_status:
+            return 'queued'
+        return 'unknown'
+
     def obsolete_older_updates(self, db):
         """Obsolete any older pending/testing updates.
 
